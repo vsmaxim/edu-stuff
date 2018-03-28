@@ -37,6 +37,7 @@ static void * thread_func(void *arg) {
 
 int main() {
     thread_args arg;
+    sem_unlink("sem_2");
     sem_t* sem = sem_open("sem_2", O_CREAT, S_IRUSR | S_IWUSR, 1);
     arg.sem = sem;
     arg.filedes = open("output.txt", O_RDWR | O_CREAT | O_APPEND | O_NONBLOCK, S_IRUSR | S_IWUSR);

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 
 struct thread_args {
@@ -33,7 +34,14 @@ static void * second_thread(void *arg) {
     char buf[15];
     while (args->thread_run) {
         buf[0] = '\0';
-        read(args->filedes[0], buf, 14);
+	while (read(args->filedes[0], buf, sizeof(buf) - 1) == -1) {
+		sleep(1);
+		int err = errno;
+		perror(nullptr);
+		if (!args->thread_run) {
+			pthread_exit((void*)&args->exit_code);
+		}	
+	};
         printf("%s\n", buf);
     }
     args->exit_code = 2;
@@ -45,6 +53,9 @@ int main() {
     thread_args arg1, arg2;
     int fdes[2];
     pipe(fdes);
+    //pipe2(fdes, O_NONBLOCK);
+    int old_flags = fcntl(fdes[0], F_GETFL);
+    fcntl(fdes[0], F_SETFL, O_NONBLOCK | old_flags); 
     arg1.filedes = fdes;
     arg2.filedes = fdes;
     if (pthread_create(&arg1.thread_id, nullptr, first_thread, &arg1)) {
