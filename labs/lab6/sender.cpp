@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <semaphore.h>
@@ -38,13 +39,12 @@ static void * thread_func(void *arg) {
     // Run thread
     while (args->thread_run) {
         // Sync exiting
-        sem_getvalue(args->close_sem, &exit_code);
-        if (!exit_code) {
-            printf("Another process was finished, exiting...\n");
-            sem_unlink(SCLOSE);
-            break;
-        }
         write(args->filedes, message, 3);
+	if (errno == EPIPE) {
+		fflush(stdout);
+		printf("Another process finished, exiting..");
+		break;
+	}
         printf("Sent: %s\n", message);
         sleep(1);
     }

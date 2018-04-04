@@ -51,8 +51,8 @@ static void * thread_func(void *arg) {
         value = rand();
         printf("Random value is: %d\n", value);
         *args->ptr = value;
-        sem_wait(args->read_sem);
         sem_post(args->write_sem);
+        sem_wait(args->read_sem);
         sleep(1);
     }
     if (exit_code) sem_trywait(args->close_sem);
@@ -63,9 +63,14 @@ static void * thread_func(void *arg) {
 
 int main() {
     thread_args arg;
+    //unlink 
+    //sem_unlink(SREAD);
+    //sem_unlink(SWRITE);
+    //sem_unlink(SRUN);
+    //sem_unlink(SCLOSE);
     // Opening semaphores for read, write and close sync
-    sem_t* sem_read = sem_open(SREAD, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    sem_t* sem_write = sem_open(SWRITE, O_CREAT, S_IRUSR | S_IWUSR, 1);
+    sem_t* sem_read = sem_open(SREAD, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    sem_t* sem_write = sem_open(SWRITE, O_CREAT, S_IRUSR | S_IWUSR, 0);
     sem_t* sem_close = sem_open(SCLOSE, O_CREAT, S_IRUSR | S_IWUSR, 1);
     sem_t* sem_run = sem_open(SRUN, O_CREAT, S_IRUSR | S_IWUSR, 0);
     perror(nullptr);
@@ -99,5 +104,6 @@ int main() {
     sem_unlink(SREAD);
     sem_unlink(SWRITE);
     sem_unlink(SRUN);
+    sem_unlink(SCLOSE);
     return 0;
 }

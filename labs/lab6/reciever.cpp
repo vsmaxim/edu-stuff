@@ -37,15 +37,11 @@ static void * thread_func(void *arg) {
     printf("Processes synchronized\n");
     // Run thread
     while (args->thread_run) {
-        // Sync exiting
-        sem_getvalue(args->close_sem, &exit_code);
-        if (!exit_code) {
-            printf("Another process was finished, exiting...\n");
-            sem_unlink(SCLOSE);
-            break;
-        }
         message[0] = '\0';
-        read(args->filedes, message, 3);
+        if (!read(args->filedes, message, 3)) {
+		printf("Another process was finished, exiting");
+		break;
+	}
         fflush(stdout);
         printf("Recieved: %s\n", message);
         sleep(1);

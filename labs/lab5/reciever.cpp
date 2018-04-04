@@ -61,8 +61,8 @@ static void * thread_func(void *arg) {
 
 int main() {
     thread_args arg;
-    sem_t* sem_read = sem_open(SREAD, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    sem_t* sem_write = sem_open(SWRITE, O_CREAT, S_IRUSR | S_IWUSR, 1);
+    sem_t* sem_read = sem_open(SREAD, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    sem_t* sem_write = sem_open(SWRITE, O_CREAT, S_IRUSR | S_IWUSR, 0);
     sem_t* sem_close = sem_open(SCLOSE, O_CREAT, S_IRUSR | S_IWUSR, 1);
     sem_t* sem_run = sem_open(SRUN, O_CREAT, S_IRUSR | S_IWUSR, 0);
     arg.read_sem = sem_read;
@@ -94,5 +94,6 @@ int main() {
     sem_unlink(SWRITE);
     sem_unlink(SREAD);
     sem_unlink(SRUN);
+    sem_unlink(SCLOSE);
     return 0;
 }

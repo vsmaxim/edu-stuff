@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <queue>
 #include <string>
-#define SOCKET_PATH "/tmp/some_socket.socket"
+#define SOCKET_PATH "somesock"
 #define CONNECTION_QUEUE_SIZE 20
 #define BUFFER_LENGTH 40
 
@@ -25,18 +25,27 @@ pthread_t get_req_thread,
           list_sock_thread;    
 
 struct socket_data {
-    sockaddr_un addres;
+    sockaddr_un addres = { AF_UNIX, SOCKET_PATH };
     int descriptor;
-    queue<string> request_queue;
-    queue<string> response_queue;
+    int client_desc;
+    queue<char*> request_queue;
+    queue<char*> response_queue;
 };
+
+void flush_prints(char *pre, char *s) {
+    fflush(stdout);
+    printf("%s %s\n", pre, s);
+}
 
 static void *get_request(void *arg) {
     socket_data *data = (socket_data*)arg;
     while (!get_request_finish) {
         char buffer[BUFFER_LENGTH];
         buffer[BUFFER_LENGTH - 1] = 0;
-        ssize_t message_size = recv(data->descriptor, buffer, BUFFER_LENGTH - 1, 0);
+        ssize_t message_size = recv(data->client_desc, buffer, BUFFER_LENGTH - 1, 0);
+	flush_prints("Got request: ", buffer);
+	// perror("get request");
+	sleep(1);
         data->request_queue.push(buffer);
     }
 }
@@ -53,6 +62,7 @@ static void *process_request(void *arg) {
 }
 
 static void *send_response(void *arg) {
+    sleep(1);
     socket_data *data = (socket_data*)arg;
     while (!send_response_finish) {
         while(data->response_queue.empty()) {
@@ -60,7 +70,8 @@ static void *send_response(void *arg) {
         }
         string response = data->response_queue.front();
         data->response_queue.pop();
-        send(data->descriptor, response.c_str(), response.length(), 0);
+        send(data->client_desc, response.c_str(), response.length(), 0);
+	// perror("send response");
     }
 }
 
@@ -68,9 +79,12 @@ static void *listen_socket(void *arg) {
     socket_data* data = (socket_data*)arg;
     printf("Listening for incoming connections\n");
     while (!listen_socket_finish) {
-        int head_connection = accept(data->descriptor, NULL, NULL);
+	socklen_t slen = sizeof(sockaddr);
+        int head_connection = accept(data->descriptor, (sockaddr*)&data->addres, &slen);
+	perror("accept connection");
         if (head_connection) {
             printf("Connection established!");
+	    data->client_desc = head_connection;
             // Connection established
             pthread_create(&get_req_thread, nullptr, get_request, (void*)data);
             pthread_create(&proc_req_thread, nullptr, process_request, (void*)data);
@@ -82,27 +96,21 @@ static void *listen_socket(void *arg) {
 
 int main() {
     socket_data data;
+    unlink(SOCKET_PATH);
     data.descriptor = socket(AF_UNIX, SOCK_STREAM, 0);
+    perror("creating socket");
     if (data.descriptor == -1) {
         printf("Error creating socket\n");
     };
-    // Nullify name for compatibility
-    memset(&data.addres, 0, sizeof(data.addres));
-    data.addres.sun_family = AF_UNIX;
-    strncpy(data.addres.sun_path, SOCKET_PATH, sizeof(SOCKET_PATH) - 1);
     // Unlink if socket wasn't unlinked last time
-    unlink(SOCKET_PATH);
     // Bind socket
-    if (bind(data.descriptor, (const sockaddr *)&data.addres, sizeof(sockaddr_un))) {
-        printf("Error binding socket\n");
-    };
-    if (listen(data.descriptor, CONNECTION_QUEUE_SIZE)) {
-        printf("Error listening socket\n");   
-    };
+    bind(data.descriptor, (const sockaddr *)&data.addres, sizeof(sockaddr_un));
+    perror("binding");
+    listen(data.descriptor, CONNECTION_QUEUE_SIZE);
+    perror("listening");
     // Create request and response queues
-    if (pthread_create(&list_sock_thread, nullptr, listen_socket, (void*)&data)) {
-        printf("Error creating thread\n");   
-    };
+    pthread_create(&list_sock_thread, nullptr, listen_socket, (void*)&data);
+    perror("thread");
     getchar();
     // Finish threads
     get_request_finish = true;

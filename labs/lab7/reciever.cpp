@@ -7,7 +7,7 @@
 #include <semaphore.h>
 #include <mqueue.h>
 #define PTR_SIZE sizeof(int)
-#define QNAME "queue"
+#define QNAME "/queue"
 
 struct thread_args {
     bool thread_run;
@@ -20,10 +20,11 @@ struct thread_args {
 static void * thread_func(void *arg) {
     thread_args *args = (thread_args*) arg;
     printf("Started first thread\n");
-    char message[4];   
+    char message[1000];   
     while (args->thread_run) {
         message[0] = '\0';
-        mq_receive(args->mq, message, 4, NULL);
+        mq_receive(args->mq, message, 1000, NULL);
+	perror(nullptr);
         printf("Recieved: %s\n", message);
         sleep(1);
     }
@@ -33,8 +34,11 @@ static void * thread_func(void *arg) {
 }
 
 int main() {
+    mq_attr attr = {0, 10, 8, 0};
     thread_args arg;
-    arg.mq = mq_open(QNAME, O_CREAT, S_IRUSR, NULL);
+    perror(nullptr);
+    arg.mq = mq_open(QNAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attr);
+    perror(nullptr);
     if (pthread_create(&arg.thread_id, nullptr, thread_func, &arg)) {
         printf("Error opening first thread\n");
     }
